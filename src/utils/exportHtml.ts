@@ -1,0 +1,525 @@
+/**
+ * Utility to generate and download the standalone single-file HTML version of the game.
+ * Completely self-contained with zero external runtime dependencies.
+ */
+
+export function downloadStandaloneHtmlFile() {
+  const htmlContent = generateStandaloneHtml();
+  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cinnamoroll_dressup.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function generateStandaloneHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cinnamoroll Dress-Up Game • Одевалка Синаморолл</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Nunito:wght@400;600;700;800;900&display=swap');
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(135deg, #EBF8FF 0%, #FFF5F7 50%, #FAF5FF 100%);
+      color: #2D3748;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    header {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #E2EEFC;
+      box-shadow: 0 4px 15px rgba(186, 215, 248, 0.2);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand h1 { font-family: 'Comfortaa', sans-serif; font-size: 20px; font-weight: 700; color: #2B6CB0; }
+    .stats { display: flex; gap: 12px; align-items: center; }
+    .coin-badge {
+      background: #FEFCBF; border: 2px solid #ECC94B;
+      padding: 6px 16px; border-radius: 999px;
+      font-weight: 800; color: #744210; font-size: 15px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .main-layout {
+      flex: 1; display: grid; grid-template-columns: 1fr 380px; gap: 24px;
+      padding: 24px; max-width: 1280px; margin: 0 auto; width: 100%;
+    }
+    @media (max-width: 900px) {
+      .main-layout { grid-template-columns: 1fr; }
+    }
+    .stage-card {
+      background: white; border-radius: 32px;
+      box-shadow: 0 15px 35px rgba(186, 215, 248, 0.35);
+      border: 3px solid #FFFFFF;
+      position: relative; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; min-height: 520px;
+      overflow: hidden;
+    }
+    .char-svg { width: 100%; max-width: 440px; height: auto; cursor: pointer; transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .char-svg:active { transform: scale(0.96); }
+    
+    @keyframes earFloatLeft {
+      0%, 100% { transform: rotate(0deg) translateY(0); }
+      50% { transform: rotate(-3.5deg) translateY(-4px); }
+    }
+    @keyframes earFloatRight {
+      0%, 100% { transform: rotate(0deg) translateY(0); }
+      50% { transform: rotate(3.5deg) translateY(-4px); }
+    }
+    @keyframes eyeBlink {
+      0%, 95%, 100% { transform: scaleY(1); }
+      97.5% { transform: scaleY(0.08); }
+    }
+    .animate-ear-l { animation: earFloatLeft 4s ease-in-out infinite; transform-origin: 170px 175px; }
+    .animate-ear-r { animation: earFloatRight 4s ease-in-out infinite; transform-origin: 370px 175px; animation-delay: -0.5s; }
+    .animate-blink { animation: eyeBlink 5s ease-in-out infinite; transform-origin: center; }
+
+    .pet-hint {
+      position: absolute; bottom: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 8px 18px; border-radius: 999px;
+      font-size: 13px; font-weight: 700; color: #3182CE;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .actions-bar {
+      position: absolute; top: 18px; right: 18px; display: flex; gap: 8px;
+    }
+    .btn-action {
+      background: white; border: 2px solid #BEE3F8;
+      border-radius: 999px; padding: 8px 16px;
+      font-size: 13px; font-weight: 800; color: #2B6CB0;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: all 0.2s; box-shadow: 0 4px 10px rgba(186, 215, 248, 0.3);
+    }
+    .btn-action:hover { background: #EBF8FF; transform: translateY(-2px); }
+    .btn-action.photo { background: linear-gradient(135deg, #FBB6CE, #FEB2B2); color: white; border: none; }
+    .btn-action.shop { background: linear-gradient(135deg, #ECC94B, #ED8936); color: white; border: none; }
+    .wardrobe-card {
+      background: rgba(255, 255, 255, 0.9); border-radius: 32px;
+      padding: 20px; box-shadow: 0 15px 35px rgba(186, 215, 248, 0.3);
+      border: 3px solid white; display: flex; flex-direction: column;
+    }
+    .tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; }
+    .tab-btn {
+      padding: 8px 14px; border-radius: 16px; border: none;
+      background: #EBF8FF; color: #2B6CB0; font-weight: 800; font-size: 12px;
+      cursor: pointer; white-space: nowrap; transition: 0.2s;
+    }
+    .tab-btn.active { background: #3182CE; color: white; transform: scale(1.05); }
+    .items-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+      overflow-y: auto; max-height: 460px; padding: 4px;
+    }
+    .item-card {
+      background: white; border-radius: 18px; padding: 12px;
+      border: 2px solid #E2E8F0; text-align: center; cursor: pointer;
+      transition: 0.2s; display: flex; flex-direction: column; align-items: center;
+    }
+    .item-card:hover { border-color: #90CDF4; transform: translateY(-2px); }
+    .item-card.equipped { border-color: #3182CE; background: #EBF8FF; }
+    .item-icon { font-size: 32px; margin-bottom: 6px; }
+    .item-title { font-size: 12px; font-weight: 800; color: #2D3748; }
+    .badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-top: 4px; }
+    .badge.free { background: #C6F6D5; color: #22543D; }
+    .badge.equipped { background: #3182CE; color: white; }
+    .badge.locked { background: #FEFCBF; color: #744210; }
+    .particle {
+      position: absolute; pointer-events: none; font-weight: 900;
+      animation: floatUp 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0) scale(0.8); }
+      100% { opacity: 0; transform: translateY(-70px) scale(1.3); }
+    }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(26, 32, 44, 0.5);
+      backdrop-filter: blur(4px); display: none; align-items: center;
+      justify-content: center; z-index: 100; padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: white; border-radius: 28px; width: 100%; max-width: 500px;
+      padding: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); position: relative;
+    }
+    .close-btn {
+      position: absolute; top: 18px; right: 18px; border: none;
+      background: #EDF2F7; width: 32px; height: 32px; border-radius: 50%;
+      font-size: 16px; cursor: pointer; font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span style="font-size: 28px;">☁️</span>
+      <div>
+        <h1>Синаморолл • Одевалка</h1>
+        <div style="font-size: 11px; color: #718096; font-weight: 600;">Милая гардеробная игра Sanrio</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="coin-badge">
+        <span>🪙</span>
+        <span id="coin-val">180</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <div class="stage-card" id="stage-bg">
+      <div class="actions-bar">
+        <button class="btn-action photo" onclick="takePhoto()">📷 Сделать фото</button>
+        <button class="btn-action shop" onclick="openShop()">🛍️ Магазин</button>
+      </div>
+
+      <!-- Character Vector SVG -->
+      <svg id="cinnamoroll-svg" class="char-svg" viewBox="0 0 540 500" onclick="petCinnamoroll(event)">
+        <defs>
+          <radialGradient id="blushGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#FF7A93" stop-opacity="0.75"/>
+            <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="bodyShade" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#FFFFFF"/>
+            <stop offset="60%" stop-color="#FFFFFF"/>
+            <stop offset="85%" stop-color="#F6FAFF"/>
+            <stop offset="100%" stop-color="#D8E8F8"/>
+          </linearGradient>
+          <linearGradient id="eyeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#0B2545"/>
+            <stop offset="35%" stop-color="#134E7C"/>
+            <stop offset="70%" stop-color="#2E86C1"/>
+            <stop offset="100%" stop-color="#7DD3FC"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Wings -->
+        <g id="layer-wings" style="display:none;">
+          <path d="M 180 240 C 120 170, 20 160, 5 220 C -5 260, 30 295, 80 300 C 120 305, 160 280, 185 258 Z" fill="#FFFFFF" stroke="#BEE3F8" stroke-width="4.5"/>
+          <path d="M 360 240 C 420 170, 520 160, 535 220 C 545 260, 510 295, 460 300 C 420 305, 380 280, 355 258 Z" fill="#FFFFFF" stroke="#BEE3F8" stroke-width="4.5"/>
+        </g>
+
+        <!-- Curly Tail -->
+        <g id="tail" transform="translate(350, 335)">
+          <path d="M 0 24 C 20 24, 46 18, 46 -6 C 46 -30, 12 -36, -6 -18 C -20 -3, -6 14, 12 12 C 20 10, 22 -1, 14 -5" fill="none" stroke="url(#bodyShade)" stroke-width="20" stroke-linecap="round"/>
+          <path d="M 0 24 C 20 24, 46 18, 46 -6 C 46 -30, 12 -36, -6 -18 C -20 -3, -6 14, 12 12 C 20 10, 22 -1, 14 -5" fill="none" stroke="#CBD5E1" stroke-width="4" stroke-linecap="round"/>
+          <path d="M 4 22 C 18 22, 42 16, 42 -5" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+        </g>
+
+        <!-- Floppy Ears -->
+        <g class="animate-ear-l">
+          <path id="ear-left" d="M 175 168 C 105 150, 18 185, 12 250 C 6 308, 52 332, 105 312 C 152 292, 182 222, 175 168 Z" fill="url(#bodyShade)" stroke="#CBD5E1" stroke-width="4.8"/>
+          <path d="M 145 185 C 95 178, 38 205, 34 252" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" fill="none"/>
+        </g>
+        <g class="animate-ear-r">
+          <path id="ear-right" d="M 365 168 C 435 150, 522 185, 528 250 C 534 308, 488 332, 435 312 C 388 292, 358 222, 365 168 Z" fill="url(#bodyShade)" stroke="#CBD5E1" stroke-width="4.8"/>
+          <path d="M 395 185 C 445 178, 502 205, 506 252" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" fill="none"/>
+        </g>
+
+        <!-- Body & Feet -->
+        <path d="M 205 235 C 192 268, 188 348, 210 392 C 234 406, 306 406, 330 392 C 352 348, 348 268, 335 235 Z" fill="url(#bodyShade)" stroke="#CBD5E1" stroke-width="4.8"/>
+        <path d="M 220 382 C 220 414, 250 414, 254 388 Z" fill="url(#bodyShade)" stroke="#CBD5E1" stroke-width="4.2"/>
+        <path d="M 286 388 C 290 414, 320 414, 320 382 Z" fill="url(#bodyShade)" stroke="#CBD5E1" stroke-width="4.2"/>
+
+        <!-- Feet Toe-Beans -->
+        <circle cx="236" cy="402" r="4.5" fill="#FED7E2"/>
+        <circle cx="304" cy="402" r="4.5" fill="#FED7E2"/>
+
+        <!-- Clothes Layer -->
+        <g id="clothes-container"></g>
+
+        <!-- Shoes Layer -->
+        <g id="shoes-container"></g>
+
+        <!-- Head -->
+        <path d="M 140 185 C 134 140, 155 102, 195 84 C 225 70, 270 68, 305 76 C 345 85, 385 115, 398 155 C 406 182, 402 215, 388 238 C 375 258, 350 268, 325 272 C 285 278, 255 278, 215 272 C 188 268, 164 256, 150 236 C 138 218, 138 198, 140 185 Z" fill="url(#bodyShade)" stroke="#CBD5E1" stroke-width="5"/>
+        <path d="M 258 76 C 263 65, 277 65, 282 76 C 288 71, 298 75, 294 83 C 290 87, 270 87, 258 76 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2.5"/>
+
+        <!-- Cheeks Blush -->
+        <ellipse cx="195" cy="202" rx="26" ry="16" fill="url(#blushGrad)"/>
+        <ellipse cx="345" cy="202" rx="26" ry="16" fill="url(#blushGrad)"/>
+
+        <!-- Anime Sparkling Eyes -->
+        <g class="animate-blink">
+          <g transform="translate(216, 172)">
+            <ellipse cx="0" cy="0" rx="12.5" ry="18.5" fill="url(#eyeGrad)" stroke="#0B2545" stroke-width="1.8"/>
+            <path d="M -10 6 C -6 14, 6 14, 10 6 C 6 12, -6 12, -10 6 Z" fill="#BAE6FD"/>
+            <circle cx="-4.5" cy="-7" r="5.5" fill="#FFFFFF"/>
+            <ellipse cx="4.5" cy="6" rx="2.8" ry="3.8" fill="#FFFFFF"/>
+            <circle cx="1" cy="-1" r="1.5" fill="#BAE6FD"/>
+            <path d="M -13 -14 Q 0 -22, 13 -14" stroke="#0B2545" stroke-width="3.8" stroke-linecap="round" fill="none"/>
+          </g>
+          <g transform="translate(324, 172)">
+            <ellipse cx="0" cy="0" rx="12.5" ry="18.5" fill="url(#eyeGrad)" stroke="#0B2545" stroke-width="1.8"/>
+            <path d="M -10 6 C -6 14, 6 14, 10 6 C 6 12, -6 12, -10 6 Z" fill="#BAE6FD"/>
+            <circle cx="-4.5" cy="-7" r="5.5" fill="#FFFFFF"/>
+            <ellipse cx="4.5" cy="6" rx="2.8" ry="3.8" fill="#FFFFFF"/>
+            <circle cx="1" cy="-1" r="1.5" fill="#BAE6FD"/>
+            <path d="M -13 -14 Q 0 -22, 13 -14" stroke="#0B2545" stroke-width="3.8" stroke-linecap="round" fill="none"/>
+          </g>
+        </g>
+
+        <!-- Puppy Nose & Mouth -->
+        <ellipse cx="270" cy="186" rx="3.5" ry="2.5" fill="#0F172A"/>
+        <circle cx="269" cy="185" r="1.1" fill="#93C5FD"/>
+        <line x1="270" y1="188" x2="270" y2="194" stroke="#0F172A" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M 257 194 Q 263 203, 270 196 Q 277 203, 283 194" stroke="#0F172A" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+
+        <!-- Arms with Paw Beans -->
+        <ellipse cx="196" cy="282" rx="20" ry="14" fill="url(#bodyShade)" stroke="#CBD5E1" stroke-width="4.5"/>
+        <ellipse cx="196" cy="286" rx="5.5" ry="3.5" fill="#FED7E2"/>
+        <ellipse cx="344" cy="282" rx="20" ry="14" fill="url(#bodyShade)" stroke="#CBD5E1" stroke-width="4.5"/>
+        <ellipse cx="344" cy="286" rx="5.5" ry="3.5" fill="#FED7E2"/>
+
+        <!-- Hats Layer -->
+        <g id="hats-container"></g>
+
+        <!-- Accessories Layer -->
+        <g id="accessories-container"></g>
+      </svg>
+
+      <div class="pet-hint">💕 Кликай по Синамороллу, чтобы погладить и получить 🪙 монетки!</div>
+    </div>
+
+    <!-- Wardrobe Sidebar -->
+    <div class="wardrobe-card">
+      <div style="font-family:'Comfortaa',sans-serif; font-weight:700; font-size:18px; margin-bottom:12px; color:#2B6CB0;">
+        Гардеробная
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('hats', this)">🎀 Ушки</button>
+        <button class="tab-btn" onclick="switchTab('clothes', this)">👗 Наряды</button>
+        <button class="tab-btn" onclick="switchTab('shoes', this)">🩰 Обувь</button>
+        <button class="tab-btn" onclick="switchTab('accessories', this)">✨ Аксессуары</button>
+      </div>
+
+      <div class="items-grid" id="items-grid"></div>
+    </div>
+  </div>
+
+  <!-- Shop Modal -->
+  <div class="modal-overlay" id="shop-modal">
+    <div class="modal-box">
+      <button class="close-btn" onclick="closeShop()">✕</button>
+      <h2 style="font-family:'Comfortaa',sans-serif; color:#2B6CB0; margin-bottom:6px;">🛍️ Магазин нарядов</h2>
+      <p style="font-size:13px; color:#718096; margin-bottom:16px;">Покупай эксклюзивные вещи за клики и монетки!</p>
+      <div id="shop-list" style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px; max-height:400px; overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let coins = 180;
+    let ownedItems = ['sky_ribbon', 'sweater_cinnamon', 'pink_shoes', 'marshmallow_cocoa', 'dungarees_spring', 'flower_crown', 'magic_star_wand'];
+    let equipped = { hats: 'sky_ribbon', clothes: 'sweater_cinnamon', shoes: 'pink_shoes', accessories: 'marshmallow_cocoa' };
+    let activeTab = 'hats';
+
+    const ITEMS = [
+      // 7 Free Items
+      { id: 'sky_ribbon', name: 'Небесный бантик', cat: 'hats', price: 0, icon: '🎀' },
+      { id: 'sweater_cinnamon', name: 'Свитер с корицей', cat: 'clothes', price: 0, icon: '🧶' },
+      { id: 'pink_shoes', name: 'Розовые туфельки', cat: 'shoes', price: 0, icon: '🩰' },
+      { id: 'marshmallow_cocoa', name: 'Какао с маршмеллоу', cat: 'accessories', price: 0, icon: '☕' },
+      { id: 'dungarees_spring', name: 'Комбинезончик', cat: 'clothes', price: 0, icon: '👖' },
+      { id: 'flower_crown', name: 'Цветочный венок', cat: 'hats', price: 0, icon: '🌸' },
+      { id: 'magic_star_wand', name: 'Звёздная палочка', cat: 'accessories', price: 0, icon: '🪄' },
+      // Shop Items
+      { id: 'chef_hat', name: 'Колпак пекаря', cat: 'hats', price: 65, icon: '🧑‍🍳' },
+      { id: 'gold_crown', name: 'Золотая корона', cat: 'hats', price: 150, icon: '👑' },
+      { id: 'strawberry_dress', name: 'Платье-клубничка', cat: 'clothes', price: 90, icon: '🍓' },
+      { id: 'sailor_suit', name: 'Матросский костюм', cat: 'clothes', price: 110, icon: '⚓' },
+      { id: 'blue_sneakers', name: 'Лазурные кеды', cat: 'shoes', price: 55, icon: '👟' },
+      { id: 'bunny_slippers', name: 'Тапочки-зайцы', cat: 'shoes', price: 70, icon: '🐾' },
+      { id: 'cinnamon_pastry', name: 'Синнабон', cat: 'accessories', price: 50, icon: '🥐' },
+      { id: 'angel_wings', name: 'Крылышки ангела', cat: 'accessories', price: 160, icon: '🪽' }
+    ];
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = AudioContext ? new AudioContext() : null;
+
+    function playTone(freq, duration) {
+      if (!audioCtx) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function petCinnamoroll(e) {
+      const earn = Math.floor(Math.random() * 3) + 3;
+      coins += earn;
+      document.getElementById('coin-val').innerText = coins;
+      playTone(720, 0.15);
+
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.innerText = '+' + earn + ' 🪙';
+      p.style.left = e.clientX + 'px';
+      p.style.top = e.clientY + 'px';
+      p.style.color = '#ECC94B';
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 900);
+    }
+
+    function switchTab(tab, btn) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderWardrobe();
+    }
+
+    function renderWardrobe() {
+      const container = document.getElementById('items-grid');
+      container.innerHTML = '';
+      const items = ITEMS.filter(i => i.cat === activeTab && ownedItems.includes(i.id));
+
+      items.forEach(item => {
+        const isEq = equipped[item.cat] === item.id;
+        const card = document.createElement('div');
+        card.className = 'item-card ' + (isEq ? 'equipped' : '');
+        card.onclick = () => toggleEquip(item);
+        card.innerHTML = \`
+          <div class="item-icon">\${item.icon}</div>
+          <div class="item-title">\${item.name}</div>
+          <span class="badge \${isEq ? 'equipped' : 'free'}">\${isEq ? 'Надето' : 'Надеть'}</span>
+        \`;
+        container.appendChild(card);
+      });
+    }
+
+    function toggleEquip(item) {
+      if (equipped[item.cat] === item.id) {
+        equipped[item.cat] = null;
+      } else {
+        equipped[item.cat] = item.id;
+      }
+      playTone(550, 0.12);
+      renderLayers();
+      renderWardrobe();
+    }
+
+    function renderLayers() {
+      // Clothes
+      const cBox = document.getElementById('clothes-container');
+      cBox.innerHTML = '';
+      if (equipped.clothes === 'sweater_cinnamon') {
+        cBox.innerHTML = '<path d="M 200 248 C 188 285, 192 360, 210 386 C 232 395, 308 395, 330 386 C 348 360, 352 285, 340 248 Z" fill="#FFF8ED" stroke="#D69E2E" stroke-width="4.2"/><ellipse cx="270" cy="248" rx="58" ry="15" fill="#FEEBC8" stroke="#D69E2E" stroke-width="3.8"/>';
+      } else if (equipped.clothes === 'dungarees_spring') {
+        cBox.innerHTML = '<path d="M 206 295 C 196 338, 194 380, 212 392 C 232 400, 308 400, 328 392 C 346 380, 344 338, 334 295 Z" fill="#90CDF4" stroke="#2B6CB0" stroke-width="4.2"/><path d="M 232 248 L 232 302" stroke="#2B6CB0" stroke-width="9.5"/><path d="M 308 248 L 308 302" stroke="#2B6CB0" stroke-width="9.5"/>';
+      } else if (equipped.clothes === 'strawberry_dress') {
+        cBox.innerHTML = '<path d="M 204 248 C 190 285, 168 348, 180 392 C 214 404, 326 404, 360 392 C 372 348, 350 285, 336 248 Z" fill="#FED7E2" stroke="#E53E3E" stroke-width="4.2"/>';
+      } else if (equipped.clothes === 'sailor_suit') {
+        cBox.innerHTML = '<path d="M 202 248 C 188 285, 192 360, 210 386 C 232 395, 308 395, 330 386 C 348 360, 352 285, 338 248 Z" fill="#FFFFFF" stroke="#2B6CB0" stroke-width="4.2"/><path d="M 208 248 L 226 302 L 270 268 L 314 302 L 332 248 Z" fill="#2B6CB0"/>';
+      }
+
+      // Shoes
+      const sBox = document.getElementById('shoes-container');
+      sBox.innerHTML = '';
+      if (equipped.shoes === 'pink_shoes') {
+        sBox.innerHTML = '<ellipse cx="236" cy="398" rx="22" ry="13" fill="#FBB6CE" stroke="#D53F8C" stroke-width="3.2"/><ellipse cx="304" cy="398" rx="22" ry="13" fill="#FBB6CE" stroke="#D53F8C" stroke-width="3.2"/>';
+      } else if (equipped.shoes === 'blue_sneakers') {
+        sBox.innerHTML = '<ellipse cx="234" cy="398" rx="24" ry="14" fill="#63B3ED" stroke="#2B6CB0" stroke-width="3.8"/><ellipse cx="306" cy="398" rx="24" ry="14" fill="#63B3ED" stroke="#2B6CB0" stroke-width="3.8"/>';
+      } else if (equipped.shoes === 'bunny_slippers') {
+        sBox.innerHTML = '<ellipse cx="234" cy="398" rx="24" ry="15" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3.8"/><ellipse cx="306" cy="398" rx="24" ry="15" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3.8"/>';
+      }
+
+      // Hats
+      const hBox = document.getElementById('hats-container');
+      hBox.innerHTML = '';
+      if (equipped.hats === 'sky_ribbon') {
+        hBox.innerHTML = '<g transform="translate(172, 142)"><ellipse cx="-16" cy="0" rx="16" ry="11" fill="#90CDF4" stroke="#2B6CB0" stroke-width="3"/><ellipse cx="16" cy="0" rx="16" ry="11" fill="#90CDF4" stroke="#2B6CB0" stroke-width="3"/><circle cx="0" cy="0" r="7" fill="#FFF"/></g>';
+      } else if (equipped.hats === 'flower_crown') {
+        hBox.innerHTML = '<path d="M 190 115 Q 270 88, 350 115" stroke="#48BB78" stroke-width="4.5" fill="none"/><circle cx="225" cy="104" r="9" fill="#FED7E2"/><circle cx="270" cy="98" r="10" fill="#FFFFFF"/><circle cx="315" cy="104" r="9" fill="#BEE3F8"/>';
+      } else if (equipped.hats === 'chef_hat') {
+        hBox.innerHTML = '<path d="M 224 85 C 195 72, 195 30, 230 18 C 234 -5, 306 -5, 310 18 C 345 30, 345 72, 316 85 Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="4.5"/><rect x="222" y="78" width="96" height="18" fill="#EDF2F7"/>';
+      } else if (equipped.hats === 'gold_crown') {
+        hBox.innerHTML = '<polygon points="226,86 222,46 248,61 270,38 292,61 318,46 314,86" fill="#ECC94B" stroke="#B7791F" stroke-width="3.8"/>';
+      }
+
+      // Wings
+      document.getElementById('layer-wings').style.display = equipped.accessories === 'angel_wings' ? 'block' : 'none';
+
+      // Accessories
+      const aBox = document.getElementById('accessories-container');
+      aBox.innerHTML = '';
+      if (equipped.accessories === 'marshmallow_cocoa') {
+        aBox.innerHTML = '<rect x="344" y="262" width="40" height="36" rx="8" fill="#ED8936" stroke="#C05621" stroke-width="3.5"/><ellipse cx="364" cy="262" rx="20" ry="7" fill="#7B341E"/>';
+      } else if (equipped.accessories === 'magic_star_wand') {
+        aBox.innerHTML = '<rect x="368" y="256" width="6" height="70" fill="#FAF089" stroke="#D69E2E"/><polygon points="371,235 376,247 389,247 378,256 382,268 371,259 360,268 364,256 353,247 366,247" fill="#FAF089" stroke="#D69E2E" stroke-width="2.5"/>';
+      } else if (equipped.accessories === 'cinnamon_pastry') {
+        aBox.innerHTML = '<circle cx="356" cy="282" r="26" fill="#DD6B20" stroke="#9C4221" stroke-width="3.5"/><circle cx="356" cy="282" r="12" fill="#FEEBC8"/>';
+      }
+    }
+
+    function openShop() {
+      document.getElementById('shop-modal').classList.add('active');
+      const list = document.getElementById('shop-list');
+      list.innerHTML = '';
+      ITEMS.filter(i => i.price > 0).forEach(item => {
+        const owned = ownedItems.includes(item.id);
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.innerHTML = \`
+          <div class="item-icon">\${item.icon}</div>
+          <div class="item-title">\${item.name}</div>
+          <button class="badge \${owned ? 'equipped' : 'locked'}" onclick="buyShopItem('\${item.id}', \${item.price})" style="border:none; cursor:pointer; width:100%; padding:6px;">
+            \${owned ? 'Куплено' : '🪙 ' + item.price}
+          </button>
+        \`;
+        list.appendChild(card);
+      });
+    }
+
+    function closeShop() {
+      document.getElementById('shop-modal').classList.remove('active');
+    }
+
+    function buyShopItem(id, price) {
+      if (ownedItems.includes(id)) return;
+      if (coins < price) {
+        alert('Не хватает монеток! Погладь Синаморолла, чтобы заработать.');
+        return;
+      }
+      coins -= price;
+      ownedItems.push(id);
+      document.getElementById('coin-val').innerText = coins;
+      playTone(880, 0.25);
+      openShop();
+      renderWardrobe();
+    }
+
+    function takePhoto() {
+      playTone(300, 0.08);
+      setTimeout(() => playTone(800, 0.15), 80);
+      alert('✨ Прекрасный образ! Снимок сохранён в твоём сердце 💕');
+    }
+
+    // Init
+    renderLayers();
+    renderWardrobe();
+  </script>
+</body>
+</html>`;
+}

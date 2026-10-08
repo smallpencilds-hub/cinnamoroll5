@@ -1,0 +1,6 @@
+{
+  "name": "Cinnamoroll Pastel Dress-Up Game",
+  "description": "Интерактивная игра-одевалка Синаморолл в пастельном стиле с гардеробом, магазином нарядов, кликером монет и фото-режимом.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
